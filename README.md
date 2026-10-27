@@ -12,9 +12,9 @@ Experimental native macOS arm64 adaptation of [Machinecoin Core](https://github.
 
 ## Build and release status
 
-This repository publishes source code. It is **not a notarized, standalone macOS app release**. The locally tested application uses Homebrew libraries and an ad-hoc signature; copying that app to another Mac is not a supported installation method yet.
+An experimental [Apple Silicon DMG is available in Releases](https://github.com/amberhollow-ops/machinecoin-macos-wallet/releases/tag/v0.17.1-macos-arm64-preview.1). It requires **macOS 27 or later**. Libraries are bundled; the app is ad-hoc signed and **not Apple-notarized**. A separate clean Mac has not yet been tested.
 
-See [Apple Silicon build notes](doc/build-apple-silicon.md) for the recorded environment and remaining packaging work. The older upstream build guides are retained for reference and are not a verified Apple Silicon recipe.
+See [Apple Silicon build notes](doc/build-apple-silicon.md) for the recorded build environment. The older upstream build guides are retained for reference and are not a verified Apple Silicon recipe.
 
 ## Validation status
 

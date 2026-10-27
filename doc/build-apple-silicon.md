@@ -28,6 +28,10 @@ Then build with `make -j<N>`. The graphical binary is `src/qt/machinecoin-qt`; l
 
 These are configuration notes, not a complete dependency bootstrap script. In particular, the legacy BLS/RELIC and Berkeley DB dependency builds require their own platform preparation. Do not substitute unrelated newer cryptographic libraries without testing compatibility.
 
-## Packaging still needed
+## Preview packaging
 
-Bundle the required dynamic libraries and Qt plugins, remove machine-specific paths, verify on a clean Apple Silicon Mac, and decide on signing/notarization before advertising a downloadable application. The source commit does not include the local `.app` bundle.
+Preview 1 bundles Qt frameworks/plugins and Homebrew dynamic libraries using `macdeployqt`, with transitive Brotli and SharpYUV dependencies added explicitly. All Mach-O library references were checked for external Homebrew loads. Local debug symbols were stripped and BLS/RELIC rebuilt with `-ffile-prefix-map` (including RELIC's `COMP` flags) to remove personal diagnostic paths. Bundled licenses are under `Contents/Resources/Licenses`.
+
+The [launcher](../contrib/macos-wallet-launcher.c) sets English and forwards user arguments without a hard-coded data directory. The app is ad-hoc signed and the DMG checked using `hdiutil verify`.
+
+A bundled GUI smoke test created an isolated regtest wallet, mined three blocks, and shut down cleanly, with no external Homebrew libraries loaded. BLS tests passed (162 assertions, eight cases). These checks do not replace a clean-machine test or the unresolved full Core suite. Apple notarization is not provided.

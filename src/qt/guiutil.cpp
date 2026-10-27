@@ -185,6 +185,9 @@ bool parseMachinecoinURI(const QUrl &uri, SendCoinsRecipient *out)
 
 bool parseMachinecoinURI(QString uri, SendCoinsRecipient *out)
 {
+    // Normalize before QUrl treats the case-sensitive address as a hostname.
+    if (uri.startsWith("machinecoin://", Qt::CaseInsensitive))
+        uri.replace(0, 14, "machinecoin:");
     QUrl uriInstance(uri);
     return parseMachinecoinURI(uriInstance, out);
 }
@@ -370,8 +373,8 @@ void bringToFront(QWidget* w)
 #ifdef Q_OS_MAC
     // Force application activation on macOS. With Qt 5.4 this is required when
     // an action in the dock menu is triggered.
-    id app = objc_msgSend((id) objc_getClass("NSApplication"), sel_registerName("sharedApplication"));
-    objc_msgSend(app, sel_registerName("activateIgnoringOtherApps:"), YES);
+    id app = reinterpret_cast<id (*)(id, SEL)>(objc_msgSend)((id) objc_getClass("NSApplication"), sel_registerName("sharedApplication"));
+    reinterpret_cast<void (*)(id, SEL, BOOL)>(objc_msgSend)(app, sel_registerName("activateIgnoringOtherApps:"), YES);
 #endif
 
     if (w) {

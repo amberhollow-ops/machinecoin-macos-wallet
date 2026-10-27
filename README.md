@@ -1,77 +1,33 @@
-﻿Machinecoin Core integration/staging tree
-=====================================
+# Machinecoin Wallet for Apple Silicon
 
-[![Discord](https://discordapp.com/api/guilds/306493503318261760/embed.png)](https://discord.gg/75mVAPA)
-[![Build Status](https://build.machinecoin.io/job/machinecoin-core/badge/icon)](https://build.machinecoin.io/job/machinecoin-core/)
+Experimental native macOS arm64 adaptation of [Machinecoin Core](https://github.com/machinecoin-project/machinecoin-core), based on upstream commit `fddd907052cb03c1907f0a57037c37c5388c9452` (v0.17.1 Octopus).
 
-https://machinecoin.io
+## Included changes
 
-What is Machinecoin?
-----------------
+- Apple Silicon Objective-C message dispatch fixes and compatibility updates for current Boost, OpenSSL and C++ toolchains.
+- Midnight dark interface with amber accents, sidebar navigation, balance cards, peer status and local chain status.
+- Payment request QR support when built with libqrencode, plus case-preserving `machinecoin://` URI normalization.
+- Opt-in CPU solo mining with thread selection, explicit start/stop controls and synchronization readiness checks. No Apple Metal GPU miner is included.
+- Preserve healthy peers on sparse networks instead of disconnecting them solely because of a cached masternode full-sync marker.
 
-Machinecoin is an experimental digital currency that enables instant payments to
-anyone, anywhere in the world. Machinecoin uses peer-to-peer technology to operate
-with no central authority: managing transactions and issuing money are carried
-out collectively by the network. Machinecoin Core is the name of open source
-software which enables the use of this currency.
+## Build and release status
 
-For more information, as well as an immediately useable, binary version of
-the Machinecoin Core software, see https://machinecoin.org/en/download, or read the
-[original whitepaper](https://machinecoin.io/machinecoin.pdf).
+This repository publishes source code. It is **not a notarized, standalone macOS app release**. The locally tested application uses Homebrew libraries and an ad-hoc signature; copying that app to another Mac is not a supported installation method yet.
 
-License
--------
+See [Apple Silicon build notes](doc/build-apple-silicon.md) for the recorded environment and remaining packaging work. The older upstream build guides are retained for reference and are not a verified Apple Silicon recipe.
 
-Machinecoin Core is released under the terms of the MIT license. See [COPYING](COPYING) for more
-information or see https://opensource.org/licenses/MIT.
+## Validation status
 
-Development Process
--------------------
+The local arm64 application was built and exercised in October 2026. Recorded checks include wallet database, wallet cryptography, accounting, coin selection, BLS/crypto and payment URI tests. A displayed payment QR code was decoded and matched its payment URI.
 
-The `master` branch is regularly built and tested, but is not guaranteed to be
-completely stable. [Tags](https://github.com/machinecoin/machinecoin/tags) are created
-regularly to indicate new official, stable release versions of Machinecoin Core.
+The complete legacy test suite is **not green**: known failures include old Bitcoin-specific fixtures, an expired payment-server test certificate, and wallet rescan/PSBT cases that still need investigation. Some Qt cases skip under the minimal macOS platform. This is experimental software, not a security audit or a claim of complete protocol compatibility.
 
-The contribution workflow is described in [CONTRIBUTING.md](CONTRIBUTING.md).
+Back up your wallet before experimenting. Wallet databases, private keys, local configuration, blockchain data and development-machine launchers are not included in this repository.
 
-Testing
--------
+## Related project
 
-Testing and code review is the bottleneck for development; we get more pull
-requests than we can review and test on short notice. Please be patient and help out by testing
-other people's pull requests, and remember this is a security-critical project where any mistake might cost people
-lots of money.
+[Machinecoin Android Wallet](https://github.com/amberhollow-ops/machinecoin-android-wallet)
 
-### Automated Testing
+## License and attribution
 
-Developers are strongly encouraged to write [unit tests](src/test/README.md) for new code, and to
-submit new unit tests for old code. Unit tests can be compiled and run
-(assuming they weren't disabled in configure) with: `make check`. Further details on running
-and extending unit tests can be found in [/src/test/README.md](/src/test/README.md).
-
-There are also [regression and integration tests](/test), written
-in Python, that are run automatically on the build server.
-These tests can be run (if the [test dependencies](/test) are installed) with: `test/functional/test_runner.py`
-
-The Travis CI system makes sure that every pull request is built for Windows, Linux, and macOS, and that unit/sanity tests are run automatically.
-
-### Manual Quality Assurance (QA) Testing
-
-Changes should be tested by somebody other than the developer who wrote the
-code. This is especially important for large or high-risk changes. It is useful
-to add a test plan to the pull request description if testing the changes is
-not straightforward.
-
-Translations
-------------
-
-Changes to translations as well as new translations can be submitted to
-[Machinecoin Core's Transifex page](https://www.transifex.com/projects/p/machinecoin/).
-
-Translations are periodically pulled from Transifex and merged into the git repository. See the
-[translation process](doc/translation_process.md) for details on how this works.
-
-**Important**: We do not accept translation changes as GitHub pull requests because the next
-pull from Transifex would automatically overwrite them again.
-
-Translators should also subscribe to the [mailing list](https://groups.google.com/forum/#!forum/machinecoin-translators).
+Machinecoin Core is derived from Bitcoin Core and Dash Core. The upstream history, copyright notices and [MIT license](COPYING) are retained. This is a community-maintained experimental adaptation, not an official upstream release.

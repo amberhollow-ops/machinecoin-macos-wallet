@@ -3,6 +3,7 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <qt/walletview.h>
+#include <qt/miningpage.h>
 
 #include <qt/addressbookpage.h>
 #include <qt/askpassphrasedialog.h>
@@ -62,10 +63,13 @@ WalletView::WalletView(const PlatformStyle *_platformStyle, QWidget *parent):
     usedSendingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::SendingTab, this);
     usedReceivingAddressesPage = new AddressBookPage(platformStyle, AddressBookPage::ForEditing, AddressBookPage::ReceivingTab, this);
 
+    miningPage = new MiningPage(this);
+    addWidget(miningPage);
     addWidget(overviewPage);
     addWidget(transactionsPage);
     addWidget(receiveCoinsPage);
     addWidget(sendCoinsPage);
+    setCurrentWidget(overviewPage);
 
     QSettings settings;
     if (settings.value("fShowMasternodesTab").toBool()) {
@@ -124,6 +128,7 @@ void WalletView::setMachinecoinGUI(MachinecoinGUI *gui)
 void WalletView::setClientModel(ClientModel *_clientModel)
 {
     this->clientModel = _clientModel;
+    miningPage->setClientModel(_clientModel);
 
     overviewPage->setClientModel(_clientModel);
     sendCoinsPage->setClientModel(_clientModel);
@@ -136,6 +141,7 @@ void WalletView::setClientModel(ClientModel *_clientModel)
 void WalletView::setWalletModel(WalletModel *_walletModel)
 {
     this->walletModel = _walletModel;
+    miningPage->setWalletModel(_walletModel);
 
     // Put transaction list in tabs
     transactionView->setModel(_walletModel);
@@ -364,3 +370,5 @@ void WalletView::requestedSyncWarningInfo()
 {
     Q_EMIT outOfSyncWarningClicked();
 }
+
+void WalletView::gotoMiningPage() { setCurrentWidget(miningPage); }

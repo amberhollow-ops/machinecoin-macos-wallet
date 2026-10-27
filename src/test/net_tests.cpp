@@ -228,3 +228,56 @@ BOOST_AUTO_TEST_CASE(ipv4_peer_with_ipv6_addrMe_test)
 }
 
 BOOST_AUTO_TEST_SUITE_END()
+
+// Regression: a persisted full-sync marker must not evict the only usable peers.
+#include <masternode-sync.h>
+#include <netfulfilledman.h>
+#include <protocol.h>
+#include <utiltime.h>
+
+struct MasternodeSyncPeerSetup : TestingSetup {
+    MasternodeSyncPeerSetup() : TestingSetup(CBaseChainParams::MAIN) {}
+    ~MasternodeSyncPeerSetup() {
+        CConnmanTest::ClearNodes();
+        netfulfilledman.Clear();
+        SetMockTime(0);
+    }
+};
+
+BOOST_FIXTURE_TEST_SUITE(masternode_sync_peer_tests, MasternodeSyncPeerSetup)
+BOOST_AUTO_TEST_CASE(retain_recently_synced_peers_after_reset)
+{
+    const int64_t now = GetTime();
+    SetMockTime(now);
+    netfulfilledman.Clear();
+    CMasternodeSync sync;
+    sync.SwitchToNextAsset(*connman);
+    std::vector<CNode*> peers;
+    for (int i = 0; i < 2; ++i) {
+        CAddress addr(LookupNumeric(i == 0 ? "192.0.2.1" : "192.0.2.2", 40333), NODE_NETWORK);
+        auto* node = new CNode(100 + i, NODE_NETWORK, 0, INVALID_SOCKET, addr, i, i, CAddress(), "", false);
+        node->fSuccessfullyConnected = true;
+        node->nVersion = PROTOCOL_VERSION;
+        node->SetSendVersion(PROTOCOL_VERSION);
+        CConnmanTest::AddNode(*node);
+        peers.push_back(node);
+        netfulfilledman.AddFulfilledRequest(addr, "full-sync");
+        netfulfilledman.AddFulfilledRequest(addr, "masternode-list-sync");
+    }
+    // Initialize the tick clock, then reproduce the next maintenance cycle.
+    sync.ProcessTick(*connman);
+    SetMockTime(now + MASTERNODE_SYNC_TICK_SECONDS);
+    sync.ProcessTick(*connman);
+    for (auto* peer : peers) BOOST_CHECK(!peer->fDisconnect);
+    // Cached requests remain throttled, but do not prevent the waiting-stage timeout.
+    SetMockTime(now + MASTERNODE_SYNC_TIMEOUT_SECONDS + MASTERNODE_SYNC_TICK_SECONDS);
+    sync.ProcessTick(*connman);
+    BOOST_CHECK_EQUAL(sync.GetAssetID(), MASTERNODE_SYNC_LIST);
+    BOOST_CHECK_EQUAL(sync.GetAttempt(), 0);
+    for (auto* peer : peers) {
+        BOOST_CHECK(!peer->fDisconnect);
+        BOOST_CHECK(netfulfilledman.HasFulfilledRequest(peer->addr, "masternode-list-sync"));
+        BOOST_CHECK(netfulfilledman.HasFulfilledRequest(peer->addr, "full-sync"));
+    }
+}
+BOOST_AUTO_TEST_SUITE_END()

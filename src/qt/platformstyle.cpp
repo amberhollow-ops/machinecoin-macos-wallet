@@ -20,7 +20,7 @@ static const struct {
     /** Extra padding/spacing in transactionview */
     const bool useExtraSpacing;
 } platform_styles[] = {
-    {"macosx", false, false, true},
+    {"macosx", false, true, true},
     {"windows", true, false, false},
     /* Other: linux, unix, ... */
     {"other", true, true, false}
@@ -78,21 +78,10 @@ PlatformStyle::PlatformStyle(const QString &_name, bool _imagesOnButtons, bool _
     singleColor(0,0,0),
     textColor(0,0,0)
 {
-    // Determine icon highlighting color
-    if (colorizeIcons) {
-        const QColor colorHighlightBg(QApplication::palette().color(QPalette::Highlight));
-        const QColor colorHighlightFg(QApplication::palette().color(QPalette::HighlightedText));
-        const QColor colorText(QApplication::palette().color(QPalette::WindowText));
-        const int colorTextLightness = colorText.lightness();
-        QColor colorbase;
-        if (abs(colorHighlightBg.lightness() - colorTextLightness) < abs(colorHighlightFg.lightness() - colorTextLightness))
-            colorbase = colorHighlightBg;
-        else
-            colorbase = colorHighlightFg;
-        singleColor = colorbase;
-    }
-    // Determine text color
-    textColor = QColor(QApplication::palette().color(QPalette::WindowText));
+    // Midnight uses light text and amber icons on every desktop platform.
+    // PlatformStyle is constructed before the main window applies its palette.
+    singleColor = QColor("#ffc24b");
+    textColor = QColor("#f4f4f1");
 }
 
 QImage PlatformStyle::SingleColorImage(const QString& filename) const

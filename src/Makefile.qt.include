@@ -222,6 +222,7 @@ MACHINECOIN_QT_H = \
   qt/machinecoinaddressvalidator.h \
   qt/machinecoinamountfield.h \
   qt/machinecoingui.h \
+  qt/modernstyle.h \
   qt/machinecoinunits.h \
   qt/callback.h \
   qt/clientmodel.h \
@@ -268,6 +269,7 @@ MACHINECOIN_QT_H = \
   qt/walletframe.h \
   qt/walletmodel.h \
   qt/walletmodeltransaction.h \
+  qt/miningpage.h \
   qt/walletview.h \
   qt/winshutdownmonitor.h
 

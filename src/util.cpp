@@ -825,7 +825,7 @@ void ClearDatadirCache()
 fs::path GetMasternodeConfigFile()
 {
     boost::filesystem::path pathConfigFile(gArgs.GetArg("-mnconf", "masternode.conf"));
-    if (!pathConfigFile.is_complete())
+    if (!pathConfigFile.is_absolute())
         pathConfigFile = GetDataDir() / pathConfigFile;
     return pathConfigFile;
 }

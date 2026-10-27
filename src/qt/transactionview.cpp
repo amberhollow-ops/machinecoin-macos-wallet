@@ -78,9 +78,9 @@ TransactionView::TransactionView(const PlatformStyle *platformStyle, QWidget *pa
 
     typeWidget = new QComboBox(this);
     if (platformStyle->getUseExtraSpacing()) {
-        typeWidget->setFixedWidth(121);
+        typeWidget->setFixedWidth(150);
     } else {
-        typeWidget->setFixedWidth(120);
+        typeWidget->setFixedWidth(150);
     }
 
     typeWidget->addItem(tr("All"), TransactionFilterProxy::ALL_TYPES);

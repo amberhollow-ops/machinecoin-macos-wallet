@@ -95,6 +95,8 @@ private:
     QLabel* labelWalletEncryptionIcon = nullptr;
     QLabel* labelWalletHDStatusIcon = nullptr;
     QLabel* labelProxyIcon = nullptr;
+    QLabel* peerStatus = nullptr;
+    QLabel* chainStatus = nullptr;
     QLabel* connectionsControl = nullptr;
     QLabel* labelBlocksIcon = nullptr;
     QLabel* progressBarLabel = nullptr;
@@ -127,6 +129,7 @@ private:
     QAction* m_wallet_selector_label_action = nullptr;
     QAction* m_wallet_selector_action = nullptr;
     QAction* masternodeAction = nullptr;
+    QAction* miningAction = nullptr;
 
     QLabel *m_wallet_selector_label = nullptr;
     QComboBox* m_wallet_selector = nullptr;
@@ -230,6 +233,7 @@ private Q_SLOTS:
     void gotoHistoryPage();
     /** Switch to masternode page */
     void gotoMasternodePage();
+    void gotoMiningPage();
     /** Switch to receive coins page */
     void gotoReceiveCoinsPage();
     /** Switch to send coins page */

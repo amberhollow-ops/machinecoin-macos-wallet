@@ -120,3 +120,13 @@ contrib/devtools/split-debug.sh
 !depends/patches/*
 .vscode/settings.json
 .vscode/c_cpp_properties.json
+
+# Local wallet data and macOS development artifacts
+wallet.dat
+.walletlock
+.cookie
+*.dmg
+*.app/
+.DS_Store
+/mainnet/
+/wallet-backups/

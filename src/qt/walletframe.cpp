@@ -38,6 +38,7 @@ WalletFrame::~WalletFrame()
 void WalletFrame::setClientModel(ClientModel *_clientModel)
 {
     this->clientModel = _clientModel;
+    for (auto view : mapWalletViews) view->setClientModel(_clientModel);
 }
 
 bool WalletFrame::addWallet(WalletModel *walletModel)
@@ -223,3 +224,5 @@ void WalletFrame::outOfSyncWarningClicked()
 {
     Q_EMIT requestedSyncWarningInfo();
 }
+
+void WalletFrame::gotoMiningPage() { if (currentWalletView()) currentWalletView()->gotoMiningPage(); }

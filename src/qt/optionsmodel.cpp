@@ -17,11 +17,11 @@
 #include <netbase.h>
 #include <txdb.h> // for -dbcache defaults
 #include <qt/intro.h>
+#include <masternodeconfig.h>
 
 #ifdef ENABLE_WALLET
 #include <wallet/wallet.h>
 #include <wallet/walletdb.h>
-#include <masternodeconfig.h>
 #endif
 
 #include <QNetworkProxy>
@@ -85,8 +85,12 @@ void OptionsModel::Init(bool resetSettings)
         settings.setValue("fCoinControlFeatures", false);
     fCoinControlFeatures = settings.value("fCoinControlFeatures", false).toBool();
     
-    if (!settings.contains("fShowMasternodesTab"))
-        settings.setValue("fShowMasternodesTab", masternodeConfig.getCount());
+    // Make the existing masternode view discoverable once in the modern UI.
+    // Subsequent user changes to the visibility preference remain respected.
+    if (!settings.value("modernNavigationV1", false).toBool()) {
+        settings.setValue("fShowMasternodesTab", true);
+        settings.setValue("modernNavigationV1", true);
+    }
 
     // These are shared with the core or have a command-line parameter
     // and we want command-line parameters to overwrite the GUI settings.

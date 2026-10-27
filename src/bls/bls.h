@@ -11,10 +11,13 @@
 #include "utilstrencodings.h"
 
 #undef ERROR // chia BLS uses relic, which defines ERROR, which in turn causes win32/win64 builds to print many warnings
+#pragma push_macro("err_get_code")
+#undef err_get_code // macOS Mach macro collides with RELIC's function declaration.
 #include <chiabls/bls.hpp>
 #include <chiabls/privatekey.hpp>
 #include <chiabls/publickey.hpp>
 #include <chiabls/signature.hpp>
+#pragma pop_macro("err_get_code")
 #undef DOUBLE
 
 #include <array>

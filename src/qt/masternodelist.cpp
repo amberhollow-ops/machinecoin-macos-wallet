@@ -43,22 +43,37 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     walletModel(0)
 {
     ui->setupUi(this);
+    QLabel *syncStatus = new QLabel(this);
+    syncStatus->setObjectName("masternodeSyncStatus");
+    syncStatus->setWordWrap(true);
+    ui->topLayout->insertWidget(0, syncStatus);
+    auto updateSyncStatus = [syncStatus]() {
+        syncStatus->setText(tr("Network data: %1").arg(QString::fromStdString(masternodeSync.GetSyncStatus())));
+    };
+    QTimer *syncStatusTimer = new QTimer(this);
+    connect(syncStatusTimer, &QTimer::timeout, this, updateSyncStatus);
+    syncStatusTimer->start(1000);
+    updateSyncStatus();
+    ui->updateNote->setWordWrap(true);
+    ui->updateNote->setText(tr("Local masternode status may be incomplete until additional network data is synchronized. Verify a running node from another peer."));
 
+
+    ui->autoupdate_label->setText(tr("Refresh in (s):"));
     ui->startButton->setEnabled(false);
 
     int columnAliasWidth = 100;
     int columnAddressWidth = 200;
-    int columnProtocolWidth = 60;
-    int columnStatusWidth = 80;
+    int columnProtocolWidth = 100;
+    int columnStatusWidth = 190;
     int columnActiveWidth = 130;
     int columnLastSeenWidth = 130;
 
-    int columnPoSeScoreWidth = 80;
-    int columnRegisteredWidth = 80;
-    int columnLastPaidWidth = 80;
-    int columnNextPaymentWidth = 100;
-    int columnPayeeWidth = 130;
-    int columnOperatorRewardWidth = 130;
+    int columnPoSeScoreWidth = 110;
+    int columnRegisteredWidth = 115;
+    int columnLastPaidWidth = 100;
+    int columnNextPaymentWidth = 140;
+    int columnPayeeWidth = 320;
+    int columnOperatorRewardWidth = 155;
 
     ui->tableWidgetMyMasternodes->setColumnWidth(0, columnAliasWidth);
     ui->tableWidgetMyMasternodes->setColumnWidth(1, columnAddressWidth);
@@ -81,6 +96,12 @@ MasternodeList::MasternodeList(const PlatformStyle* platformStyle, QWidget* pare
     ui->tableWidgetMasternodesDIP3->setColumnWidth(5, columnNextPaymentWidth);
     ui->tableWidgetMasternodesDIP3->setColumnWidth(6, columnPayeeWidth);
     ui->tableWidgetMasternodesDIP3->setColumnWidth(7, columnOperatorRewardWidth);
+
+    ui->tableWidgetMyMasternodes->setColumnWidth(6, columnPayeeWidth);
+    ui->tableWidgetMasternodes->setColumnWidth(5, columnPayeeWidth);
+    for (QTableWidget *table : {ui->tableWidgetMyMasternodes, ui->tableWidgetMasternodes, ui->tableWidgetMasternodesDIP3}) {
+        table->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
+    }
 
     // dummy column for proTxHash
     // TODO use a proper table model for the MN list

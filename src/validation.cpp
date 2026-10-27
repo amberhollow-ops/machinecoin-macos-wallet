@@ -1,4 +1,4 @@
-﻿// Copyright (c) 2009-2010 Satoshi Nakamoto
+// Copyright (c) 2009-2010 Satoshi Nakamoto
 // Copyright (c) 2009-2018 The Machinecoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
@@ -2527,11 +2527,11 @@ private:
 
 public:
     explicit ConnectTrace(CTxMemPool &_pool) : blocksConnected(1), pool(_pool) {
-        pool.NotifyEntryRemoved.connect(boost::bind(&ConnectTrace::NotifyEntryRemoved, this, _1, _2));
+        pool.NotifyEntryRemoved.connect(boost::bind(&ConnectTrace::NotifyEntryRemoved, this, boost::placeholders::_1, boost::placeholders::_2));
     }
 
     ~ConnectTrace() {
-        pool.NotifyEntryRemoved.disconnect(boost::bind(&ConnectTrace::NotifyEntryRemoved, this, _1, _2));
+        pool.NotifyEntryRemoved.disconnect(boost::bind(&ConnectTrace::NotifyEntryRemoved, this, boost::placeholders::_1, boost::placeholders::_2));
     }
 
     void BlockConnected(CBlockIndex* pindex, std::shared_ptr<const CBlock> pblock) {

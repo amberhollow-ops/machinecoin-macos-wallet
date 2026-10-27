@@ -17,6 +17,9 @@
 #include <rpc/server.h>
 #include <rpc/register.h>
 #include <script/sigcache.h>
+#include <evo/evodb.h>
+#include <evo/deterministicmns.h>
+#include <llmq/quorums_init.h>
 
 void CConnmanTest::AddNode(CNode& node)
 {
@@ -93,6 +96,9 @@ TestingSetup::TestingSetup(const std::string& chainName) : BasicTestingSetup(cha
         pblocktree.reset(new CBlockTreeDB(1 << 20, true));
         pcoinsdbview.reset(new CCoinsViewDB(1 << 23, true));
         pcoinsTip.reset(new CCoinsViewCache(pcoinsdbview.get()));
+        evoDb = new CEvoDB(1 << 20, true);
+        deterministicMNManager = new CDeterministicMNManager(*evoDb);
+        llmq::InitLLMQSystem(*evoDb);
         if (!LoadGenesisBlock(chainparams)) {
             throw std::runtime_error("LoadGenesisBlock failed.");
         }
@@ -119,6 +125,11 @@ TestingSetup::~TestingSetup()
         g_connman.reset();
         peerLogic.reset();
         UnloadBlockIndex();
+        llmq::DestroyLLMQSystem();
+        delete deterministicMNManager;
+        deterministicMNManager = nullptr;
+        delete evoDb;
+        evoDb = nullptr;
         pcoinsTip.reset();
         pcoinsdbview.reset();
         pblocktree.reset();

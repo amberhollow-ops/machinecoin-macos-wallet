@@ -220,13 +220,11 @@ void CMasternodeSync::ProcessTick(CConnman& connman)
 
         // NORMAL NETWORK MODE - TESTNET/MAINNET
         {
-            if(netfulfilledman.HasFulfilledRequest(pnode->addr, "full-sync")) {
-                // We already fully synced from this node recently,
-                // disconnect to free this connection slot for another peer.
-                pnode->fDisconnect = true;
-                LogPrintf("CMasternodeSync::ProcessTick -- disconnecting from recently synced peer=%d\n", pnode->GetId());
-                continue;
-            }
+            // A cached full-sync marker is not a reason to evict a healthy peer.
+            // On a sparse network (and after restart) this can disconnect every
+            // available source of blocks. Keep the connection and let the
+            // per-asset fulfilled-request checks below throttle sync requests.
+            // Do not skip the stage timeout/state machine for cached peers.
 
             // INITIAL TIMEOUT
 

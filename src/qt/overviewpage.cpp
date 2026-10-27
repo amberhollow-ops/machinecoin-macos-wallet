@@ -118,6 +118,21 @@ OverviewPage::OverviewPage(const PlatformStyle *platformStyle, QWidget *parent) 
     txdelegate(new TxViewDelegate(platformStyle, this))
 {
     ui->setupUi(this);
+    ui->topLayout->setContentsMargins(0, 0, 0, 0);
+    ui->horizontalLayout->setSpacing(18);
+    ui->frame->setObjectName("balanceCard");
+    ui->frame_2->setObjectName("activityCard");
+    ui->verticalLayout_4->setContentsMargins(20, 20, 20, 20);
+    ui->verticalLayout_4->setSpacing(24);
+    ui->verticalLayout->setContentsMargins(20, 20, 20, 20);
+    ui->verticalLayout->setSpacing(16);
+    QLabel *empty = new QLabel(tr("No transactions yet.\nYour wallet activity will appear here."), this);
+    empty->setObjectName("emptyActivity");
+    empty->setAlignment(Qt::AlignCenter);
+    empty->setWordWrap(true);
+    empty->hide();
+    ui->verticalLayout->addWidget(empty);
+    ui->listTransactions->setStyleSheet("QListView { background: transparent; border: none; }");
 
     m_balances.balance = -1;
 
@@ -222,6 +237,15 @@ void OverviewPage::setWalletModel(WalletModel *model)
 
         ui->listTransactions->setModel(filter.get());
         ui->listTransactions->setModelColumn(TransactionTableModel::ToAddress);
+        auto updateEmpty = [this]() {
+            const bool empty = filter->rowCount() == 0;
+            findChild<QLabel*>("emptyActivity")->setVisible(empty);
+            ui->listTransactions->setVisible(!empty);
+        };
+        connect(filter.get(), &QAbstractItemModel::rowsInserted, this, updateEmpty);
+        connect(filter.get(), &QAbstractItemModel::rowsRemoved, this, updateEmpty);
+        connect(filter.get(), &QAbstractItemModel::modelReset, this, updateEmpty);
+        updateEmpty();
 
         // Keep up to date with wallet
         interfaces::Wallet& wallet = model->wallet();

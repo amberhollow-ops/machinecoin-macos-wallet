@@ -4,6 +4,11 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <base58.h>
+#include <chainparams.h>
+#include <key_io.h>
+#include <keystore.h>
+#include <outputtype.h>
+#include <support/lockedpool.h>
 #include <chain.h>
 #include <clientversion.h>
 #include <core_io.h>

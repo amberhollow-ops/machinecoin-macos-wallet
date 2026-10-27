@@ -1,8 +1,9 @@
-﻿// Copyright (c) 2011-2018 The Machinecoin Core developers
+// Copyright (c) 2011-2018 The Machinecoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include <qt/machinecoingui.h>
+#include <qt/modernstyle.h>
 
 #include <qt/machinecoinunits.h>
 #include <qt/clientmodel.h>
@@ -74,6 +75,9 @@ MachinecoinGUI::MachinecoinGUI(interfaces::Node& node, const PlatformStyle *_pla
     m_node(node),
     platformStyle(_platformStyle)
 {
+    applyModernWalletStyle();
+    setMinimumSize(1040, 700);
+    resize(1180, 780);
     QSettings settings;
     if (!restoreGeometry(settings.value("MainWindowGeometry").toByteArray())) {
         // Restore failed (perhaps missing setting), center the window
@@ -102,7 +106,21 @@ MachinecoinGUI::MachinecoinGUI(interfaces::Node& node, const PlatformStyle *_pla
     {
         /** Create wallet frame and make it the central widget */
         walletFrame = new WalletFrame(_platformStyle, this);
-        setCentralWidget(walletFrame);
+        QWidget *content = new QWidget(this);
+        QVBoxLayout *contentLayout = new QVBoxLayout(content);
+        contentLayout->setContentsMargins(24, 22, 24, 18);
+        contentLayout->setSpacing(8);
+        QLabel *title = new QLabel(tr("Overview"), content);
+        title->setObjectName("pageTitle");
+        title->setAccessibleName(tr("Current page"));
+        QLabel *subtitle = new QLabel(tr("Your balances and latest wallet activity."), content);
+        subtitle->setObjectName("pageSubtitle");
+        subtitle->setWordWrap(true);
+        contentLayout->addWidget(title);
+        contentLayout->addWidget(subtitle);
+        contentLayout->addSpacing(16);
+        contentLayout->addWidget(walletFrame, 1);
+        setCentralWidget(content);
     } else
 #endif // ENABLE_WALLET
     {
@@ -118,6 +136,21 @@ MachinecoinGUI::MachinecoinGUI(interfaces::Node& node, const PlatformStyle *_pla
     // Create actions for the toolbar, menu bar and tray/dock icon
     // Needs walletFrame to be initialized
     createActions();
+    if (enableWallet) {
+        QLabel *title = centralWidget()->findChild<QLabel*>("pageTitle");
+        QLabel *subtitle = centralWidget()->findChild<QLabel*>("pageSubtitle");
+        auto page = [this, title, subtitle](QAction *action, const QString& heading, const QString& description) {
+            connect(action, &QAction::toggled, this, [title, subtitle, heading, description](bool checked) {
+                if (checked) { title->setText(heading); subtitle->setText(description); }
+            });
+        };
+        page(miningAction, tr("Mining"), tr("Control local CPU solo mining and view its status."));
+        page(overviewAction, tr("Overview"), tr("Your balances and latest wallet activity."));
+        page(sendCoinsAction, tr("Send"), tr("Choose a recipient, amount and transaction fee."));
+        page(receiveCoinsAction, tr("Receive"), tr("Create a payment request or reuse a saved request."));
+        page(historyAction, tr("Transactions"), tr("Search and review your wallet transaction history."));
+        if (masternodeAction) page(masternodeAction, tr("Masternodes"), tr("Inspect the existing Machinecoin masternode network."));
+    }
 
     // Create application menu bar
     createMenuBar();
@@ -147,6 +180,10 @@ MachinecoinGUI::MachinecoinGUI(interfaces::Node& node, const PlatformStyle *_pla
     labelProxyIcon = new QLabel();
     connectionsControl = new GUIUtil::ClickableLabel();
     labelBlocksIcon = new GUIUtil::ClickableLabel();
+    peerStatus = new QLabel(tr("Connecting…"));
+    peerStatus->setObjectName("peerStatus");
+    chainStatus = new QLabel(tr("Loading chain…"));
+    chainStatus->setObjectName("chainStatus");
     if(enableWallet)
     {
         frameBlocksLayout->addStretch();
@@ -158,8 +195,10 @@ MachinecoinGUI::MachinecoinGUI(interfaces::Node& node, const PlatformStyle *_pla
     frameBlocksLayout->addWidget(labelProxyIcon);
     frameBlocksLayout->addStretch();
     frameBlocksLayout->addWidget(connectionsControl);
+    frameBlocksLayout->addWidget(peerStatus);
     frameBlocksLayout->addStretch();
     frameBlocksLayout->addWidget(labelBlocksIcon);
+    frameBlocksLayout->addWidget(chainStatus);
     frameBlocksLayout->addStretch();
 
     // Progress bar and label for blocks download
@@ -175,12 +214,20 @@ MachinecoinGUI::MachinecoinGUI(interfaces::Node& node, const PlatformStyle *_pla
     QString curStyle = QApplication::style()->metaObject()->className();
     if(curStyle == "QWindowsStyle" || curStyle == "QWindowsXPStyle")
     {
-        progressBar->setStyleSheet("QProgressBar { background-color: #e8e8e8; border: 1px solid grey; border-radius: 7px; padding: 1px; text-align: center; } QProgressBar::chunk { background: QLinearGradient(x1: 0, y1: 0, x2: 1, y2: 0, stop: 0 #FF8000, stop: 1 orange); border-radius: 7px; margin: 0px; }");
+        progressBar->setStyleSheet("QProgressBar { background-color: #25292c; border: 1px solid grey; border-radius: 7px; padding: 1px; text-align: center; } QProgressBar::chunk { background: QLinearGradient(x1: 0, y1: 0, x2: 1, y2: 0, stop: 0 #b28a37, stop: 1 #ffc24b); border-radius: 7px; margin: 0px; }");
     }
 
     statusBar()->addWidget(progressBarLabel);
     statusBar()->addWidget(progressBar);
     statusBar()->addPermanentWidget(frameBlocks);
+    QTimer *statusTimer = new QTimer(this);
+    connect(statusTimer, &QTimer::timeout, this, [this]() {
+        if (!clientModel) return;
+        const qint64 age = qMax<qint64>(0, QDateTime::currentSecsSinceEpoch() - m_node.getLastBlockTime());
+        chainStatus->setText(tr("%1 · %2 · %3 ago").arg(m_node.isInitialBlockDownload() ? tr("Syncing") : tr("Local chain")).arg(QLocale(QLocale::English).toString(m_node.getNumBlocks())).arg(GUIUtil::formatNiceTimeOffset(age)));
+        chainStatus->setToolTip(tr("Latest local block. Peer connectivity does not guarantee that the chain is current."));
+    });
+    statusTimer->start(1000);
 
     // Install event filter to be able to catch status tip events (QEvent::StatusTip)
     this->installEventFilter(this);
@@ -252,6 +299,11 @@ void MachinecoinGUI::createActions()
     receiveCoinsMenuAction = new QAction(platformStyle->TextColorIcon(":/icons/receiving_addresses"), receiveCoinsAction->text(), this);
     receiveCoinsMenuAction->setStatusTip(receiveCoinsAction->statusTip());
     receiveCoinsMenuAction->setToolTip(receiveCoinsMenuAction->statusTip());
+
+    miningAction = new QAction(tr("&Mining"), this);
+    miningAction->setCheckable(true);
+    tabGroup->addAction(miningAction);
+    connect(miningAction, SIGNAL(triggered()), this, SLOT(gotoMiningPage()));
 
     historyAction = new QAction(platformStyle->SingleColorIcon(":/icons/history"), tr("&Transactions"), this);
     historyAction->setStatusTip(tr("Browse transaction history"));
@@ -418,15 +470,27 @@ void MachinecoinGUI::createToolBars()
 {
     if(walletFrame)
     {
-        QToolBar *toolbar = addToolBar(tr("Tabs toolbar"));
+        QToolBar *toolbar = new QToolBar(tr("Navigation"), this);
+        toolbar->setObjectName("navigation");
+        addToolBar(Qt::LeftToolBarArea, toolbar);
+        toolbar->setAllowedAreas(Qt::LeftToolBarArea);
+        toolbar->setFixedWidth(192);
+        toolbar->setFloatable(false);
+        QLabel *brand = new QLabel(tr("Machinecoin"));
+        brand->setObjectName("brand");
+        toolbar->addWidget(brand);
+        QLabel *caption = new QLabel(tr("CORE WALLET"));
+        caption->setObjectName("brandCaption");
+        toolbar->addWidget(caption);
         appToolBar = toolbar;
         toolbar->setContextMenuPolicy(Qt::PreventContextMenu);
         toolbar->setMovable(false);
-        toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        toolbar->setToolButtonStyle(Qt::ToolButtonTextOnly);
         toolbar->addAction(overviewAction);
         toolbar->addAction(sendCoinsAction);
         toolbar->addAction(receiveCoinsAction);
         toolbar->addAction(historyAction);
+        toolbar->addAction(miningAction);
         QSettings settings;
         if (!fLiteMode && settings.value("fShowMasternodesTab").toBool() && masternodeAction)
         {
@@ -584,6 +648,7 @@ void MachinecoinGUI::setWalletActionsEnabled(bool enabled)
     receiveCoinsAction->setEnabled(enabled);
     receiveCoinsMenuAction->setEnabled(enabled);
     historyAction->setEnabled(enabled);
+    miningAction->setEnabled(enabled);
     QSettings settings;
     if (!fLiteMode && settings.value("fShowMasternodesTab").toBool() && masternodeAction) {
         masternodeAction->setEnabled(enabled);
@@ -785,6 +850,9 @@ void MachinecoinGUI::updateNetworkState()
     // Don't word-wrap this (fixed-width) tooltip
     tooltip = QString("<nobr>") + tooltip + QString("</nobr>");
     connectionsControl->setToolTip(tooltip);
+    peerStatus->setText(!m_node.getNetworkActive() ? tr("Network paused") : count == 0 ? tr("No peers") : (count == 1 ? tr("1 peer") : tr("%1 peers").arg(count)));
+    peerStatus->setStyleSheet(count > 0 && m_node.getNetworkActive() ? "color: #85deaa" : "color: #ffc24b");
+    peerStatus->setToolTip(tooltip);
 
     connectionsControl->setPixmap(platformStyle->SingleColorIcon(icon).pixmap(STATUSBAR_ICONSIZE,STATUSBAR_ICONSIZE));
 }
@@ -1303,8 +1371,8 @@ static bool ThreadSafeMessageBox(MachinecoinGUI *gui, const std::string& message
 void MachinecoinGUI::subscribeToCoreSignals()
 {
     // Connect signals to client
-    m_handler_message_box = m_node.handleMessageBox(boost::bind(ThreadSafeMessageBox, this, _1, _2, _3));
-    m_handler_question = m_node.handleQuestion(boost::bind(ThreadSafeMessageBox, this, _1, _3, _4));
+    m_handler_message_box = m_node.handleMessageBox(boost::bind(ThreadSafeMessageBox, this, boost::placeholders::_1, boost::placeholders::_2, boost::placeholders::_3));
+    m_handler_question = m_node.handleQuestion(boost::bind(ThreadSafeMessageBox, this, boost::placeholders::_1, boost::placeholders::_3, boost::placeholders::_4));
 }
 
 void MachinecoinGUI::unsubscribeFromCoreSignals()
@@ -1392,3 +1460,5 @@ void UnitDisplayStatusBarControl::onMenuSelection(QAction* action)
         optionsModel->setDisplayUnit(action->data());
     }
 }
+
+void MachinecoinGUI::gotoMiningPage() { miningAction->setChecked(true); if (walletFrame) walletFrame->gotoMiningPage(); }

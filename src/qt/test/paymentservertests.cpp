@@ -6,6 +6,7 @@
 
 #include <qt/optionsmodel.h>
 #include <qt/test/paymentrequestdata.h>
+#include <qt/test/paymentcertfixture.h>
 
 #include <amount.h>
 #include <chainparams.h>
@@ -21,16 +22,6 @@
 
 #include <QFileOpenEvent>
 #include <QTemporaryFile>
-
-X509 *parse_b64der_cert(const char* cert_data)
-{
-    std::vector<unsigned char> data = DecodeBase64(cert_data);
-    assert(data.size() > 0);
-    const unsigned char* dptr = data.data();
-    X509 *cert = d2i_X509(nullptr, &dptr, data.size());
-    assert(cert);
-    return cert;
-}
 
 //
 // Test payment request handling
@@ -69,9 +60,12 @@ void PaymentServerTests::paymentServerTests()
     SelectParams(CBaseChainParams::MAIN);
     auto node = interfaces::MakeNode();
     OptionsModel optionsModel(*node);
-    PaymentServer* server = new PaymentServer(nullptr, false);
+    PaymentCertFixture certificates;
+    PaymentCertFixture untrustedCertificates;
+    const auto templateData = DecodeBase64(paymentrequest1_cert1_BASE64);
+    std::unique_ptr<PaymentServer> server(new PaymentServer(nullptr, false));
     X509_STORE* caStore = X509_STORE_new();
-    X509_STORE_add_cert(caStore, parse_b64der_cert(caCert1_BASE64));
+    QVERIFY(X509_STORE_add_cert(caStore, certificates.Root()) == 1);
     PaymentServer::LoadRootCAs(caStore);
     server->setOptionsModel(&optionsModel);
     server->uiReady();
@@ -83,48 +77,54 @@ void PaymentServerTests::paymentServerTests()
     // Now feed PaymentRequests to server, and observe signals it produces
 
     // This payment request validates directly against the
-    // caCert1 certificate authority:
-    data = DecodeBase64(paymentrequest1_cert1_BASE64);
-    r = handleRequest(server, data);
+    // generated test certificate authority:
+    data = certificates.Request(templateData);
+    r = handleRequest(server.get(), data);
     r.paymentRequest.getMerchant(caStore, merchant);
     QCOMPARE(merchant, QString("testmerchant.org"));
 
     // Signed, but expired, merchant cert in the request:
-    data = DecodeBase64(paymentrequest2_cert1_BASE64);
-    r = handleRequest(server, data);
+    data = certificates.Request(templateData, 0, true);
+    r = handleRequest(server.get(), data);
     r.paymentRequest.getMerchant(caStore, merchant);
     QCOMPARE(merchant, QString(""));
 
     // 10-long certificate chain, all intermediates valid:
-    data = DecodeBase64(paymentrequest3_cert1_BASE64);
-    r = handleRequest(server, data);
+    data = certificates.Request(templateData, 8);
+    r = handleRequest(server.get(), data);
     r.paymentRequest.getMerchant(caStore, merchant);
     QCOMPARE(merchant, QString("testmerchant8.org"));
 
     // Long certificate chain, with an expired certificate in the middle:
-    data = DecodeBase64(paymentrequest4_cert1_BASE64);
-    r = handleRequest(server, data);
+    data = certificates.Request(templateData, 8, false, true);
+    r = handleRequest(server.get(), data);
     r.paymentRequest.getMerchant(caStore, merchant);
     QCOMPARE(merchant, QString(""));
 
     // Validly signed, but by a CA not in our root CA list:
-    data = DecodeBase64(paymentrequest5_cert1_BASE64);
-    r = handleRequest(server, data);
+    data = untrustedCertificates.Request(templateData);
+    r = handleRequest(server.get(), data);
     r.paymentRequest.getMerchant(caStore, merchant);
     QCOMPARE(merchant, QString(""));
+
+    // Reject a not-yet-valid certificate and a modified payment signature too.
+    data = certificates.Request(templateData, 0, false, false, true);
+    r = handleRequest(server.get(), data);
+    QVERIFY(!r.paymentRequest.getMerchant(caStore, merchant));
+    QVERIFY(merchant.isEmpty());
+    data = certificates.Request(templateData, 0, false, false, false, true);
+    r = handleRequest(server.get(), data);
+    QVERIFY(!r.paymentRequest.getMerchant(caStore, merchant));
+    QVERIFY(merchant.isEmpty());
 
     // Try again with no root CA's, verifiedMerchant should be empty:
     caStore = X509_STORE_new();
     PaymentServer::LoadRootCAs(caStore);
-    data = DecodeBase64(paymentrequest1_cert1_BASE64);
-    r = handleRequest(server, data);
+    data = certificates.Request(templateData);
+    r = handleRequest(server.get(), data);
     r.paymentRequest.getMerchant(caStore, merchant);
     QCOMPARE(merchant, QString(""));
 
-    // Load second root certificate
-    caStore = X509_STORE_new();
-    X509_STORE_add_cert(caStore, parse_b64der_cert(caCert2_BASE64));
-    PaymentServer::LoadRootCAs(caStore);
 
     QByteArray byteArray;
 
@@ -191,21 +191,34 @@ void PaymentServerTests::paymentServerTests()
     // compares 50001 <= BIP70_MAX_PAYMENTREQUEST_SIZE == false
     QCOMPARE(PaymentServer::verifySize(tempFile.size()), false);
 
-    // Payment request with amount overflow (amount is set to 21000001 MAC):
+    // Use Machinecoin's actual limit, rather than Bitcoin's 21-million fixture.
     data = DecodeBase64(paymentrequest5_cert2_BASE64);
+    payments::PaymentRequest overflowRequest;
+    QVERIFY(overflowRequest.ParseFromArray(data.data(), data.size()));
+    payments::PaymentDetails overflowDetails;
+    QVERIFY(overflowDetails.ParseFromString(overflowRequest.serialized_payment_details()));
+    QVERIFY(overflowDetails.outputs_size() > 0);
+    for (int i = 0; i < overflowDetails.outputs_size(); ++i)
+        overflowDetails.mutable_outputs(i)->set_amount(MAX_MONEY + 1);
+    overflowRequest.set_serialized_payment_details(overflowDetails.SerializeAsString());
+    const auto overflowData = overflowRequest.SerializeAsString();
+    data.assign(overflowData.begin(), overflowData.end());
     byteArray = QByteArray((const char*)data.data(), data.size());
     r.paymentRequest.parse(byteArray);
     // Ensure the request is initialized
     QVERIFY(r.paymentRequest.IsInitialized());
     // Extract address and amount from the request
     QList<std::pair<CScript, CAmount> > sendingTos = r.paymentRequest.getPayTo();
+    QVERIFY(!sendingTos.isEmpty());
     for (const std::pair<CScript, CAmount>& sendingTo : sendingTos) {
         CTxDestination dest;
-        if (ExtractDestination(sendingTo.first, dest))
-            QCOMPARE(PaymentServer::verifyAmount(sendingTo.second), false);
+        QVERIFY(ExtractDestination(sendingTo.first, dest));
+        QCOMPARE(PaymentServer::verifyAmount(sendingTo.second), false);
     }
+    QVERIFY(PaymentServer::verifyAmount(MAX_MONEY));
+    QVERIFY(!PaymentServer::verifyAmount(-1));
 
-    delete server;
+    PaymentServer::LoadRootCAs(X509_STORE_new());
 }
 
 void RecipientCatcher::getRecipient(const SendCoinsRecipient& r)

@@ -48,6 +48,7 @@
 #include <QLocale>
 #include <QMessageBox>
 #include <QSettings>
+#include <QDir>
 #include <QThread>
 #include <QTimer>
 #include <QTranslator>
@@ -88,8 +89,12 @@ static QString GetLangTerritory()
 {
     QSettings settings;
     // Get desired locale (e.g. "de_DE")
-    // 1) System default language
+    // 1) English by default on Windows; other platforms follow the system.
+#ifdef WIN32
+    QString lang_territory = "en_US";
+#else
     QString lang_territory = QLocale::system().name();
+#endif
     // 2) Language from QSettings
     QString lang_territory_qsettings = settings.value("language", "").toString();
     if(!lang_territory_qsettings.isEmpty())
@@ -544,9 +549,10 @@ static void SetupUIArgs()
     gArgs.AddArg("-allowselfsignedrootcertificates", strprintf("Allow self signed root certificates (default: %u)", DEFAULT_SELFSIGNED_ROOTCERTS), true, OptionsCategory::GUI);
 #endif
     gArgs.AddArg("-choosedatadir", strprintf("Choose data directory on startup (default: %u)", DEFAULT_CHOOSE_DATADIR), false, OptionsCategory::GUI);
-    gArgs.AddArg("-lang=<lang>", "Set language, for example \"de_DE\" (default: system locale)", false, OptionsCategory::GUI);
+    gArgs.AddArg("-lang=<lang>", "Set language, for example \"de_DE\" (default: English on Windows, system locale elsewhere)", false, OptionsCategory::GUI);
     gArgs.AddArg("-min", "Start minimized", false, OptionsCategory::GUI);
     gArgs.AddArg("-resetguisettings", "Reset all settings changed in the GUI", false, OptionsCategory::GUI);
+    gArgs.AddArg("-guisettingsdir=<dir>", "Store GUI settings in INI files in this directory (for isolated testing)", false, OptionsCategory::GUI);
     gArgs.AddArg("-rootcertificates=<file>", "Set SSL root certificates for payment request (default: -system-)", false, OptionsCategory::GUI);
     gArgs.AddArg("-splash", strprintf("Show splash screen on startup (default: %u)", DEFAULT_SPLASHSCREEN), false, OptionsCategory::GUI);
     gArgs.AddArg("-uiplatform", strprintf("Select platform to customize UI for (one of windows, macosx, other; default: %s)", MachinecoinGUI::DEFAULT_UIPLATFORM), true, OptionsCategory::GUI);
@@ -565,7 +571,6 @@ int main(int argc, char *argv[])
     Q_INIT_RESOURCE(machinecoin);
     Q_INIT_RESOURCE(machinecoin_locale);
 
-    MachinecoinApplication app(*node, argc, argv);
 #if QT_VERSION > 0x050100
     // Generate high-dpi pixmaps
     QApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
@@ -576,6 +581,8 @@ int main(int argc, char *argv[])
 #ifdef Q_OS_MAC
     QApplication::setAttribute(Qt::AA_DontShowIconsInMenus);
 #endif
+    // Scaling attributes must be set before constructing QApplication.
+    MachinecoinApplication app(*node, argc, argv);
 
     // Register meta types used for QMetaObject::invokeMethod
     qRegisterMetaType< bool* >();
@@ -596,6 +603,18 @@ int main(int argc, char *argv[])
         QMessageBox::critical(0, QObject::tr(PACKAGE_NAME),
             QObject::tr("Error parsing command line arguments: %1.").arg(QString::fromStdString(error)));
         return EXIT_FAILURE;
+    }
+
+    // Keep test runs independent of existing GUI preferences as well as wallet data.
+    if (gArgs.IsArgSet("-guisettingsdir")) {
+        const QString settingsDir = QString::fromStdString(gArgs.GetArg("-guisettingsdir", ""));
+        if (settingsDir.isEmpty() || !QDir(settingsDir).isAbsolute() || !QDir().mkpath(settingsDir)) {
+            QMessageBox::critical(0, QObject::tr(PACKAGE_NAME), QObject::tr("GUI settings directory must be an accessible absolute path."));
+            return EXIT_FAILURE;
+        }
+        QSettings::setDefaultFormat(QSettings::IniFormat);
+        QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settingsDir);
+        QSettings::setPath(QSettings::IniFormat, QSettings::SystemScope, settingsDir);
     }
 
     // Now that the QApplication is setup and we have parsed our parameters, we can set the platform style

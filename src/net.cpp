@@ -1502,7 +1502,12 @@ static void ThreadMapPort()
     struct IGDdatas data;
     int r;
 
+#if MINIUPNPC_API_VERSION >= 18
+    char wanaddr[64];
+    r = UPNP_GetValidIGD(devlist, &urls, &data, lanaddr, sizeof(lanaddr), wanaddr, sizeof(wanaddr));
+#else
     r = UPNP_GetValidIGD(devlist, &urls, &data, lanaddr, sizeof(lanaddr));
+#endif
     if (r == 1)
     {
         if (fDiscover) {
@@ -1767,6 +1772,7 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
 
     // Initiate network connections
     int64_t nStart = GetTime();
+    bool fixedSeedsAdded = false;
 
     // Minimum time before next feeler connection (in microseconds).
     int64_t nNextFeeler = PoissonNextSend(nStart*1000*1000, FEELER_INTERVAL);
@@ -1780,18 +1786,6 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
         CSemaphoreGrant grant(*semOutbound);
         if (interruptNet)
             return;
-
-        // Add seed nodes if DNS seeds are all down (an infrastructure attack?).
-        if (addrman.size() == 0 && (GetTime() - nStart > 60)) {
-            static bool done = false;
-            if (!done) {
-                LogPrintf("Adding fixed seed nodes as DNS doesn't seem to be available.\n");
-                CNetAddr local;
-                local.SetInternal("fixedseeds");
-                addrman.Add(convertSeed6(Params().FixedSeeds()), local);
-                done = true;
-            }
-        }
 
         //
         // Choose an address to connect to based on most recently seen
@@ -1814,6 +1808,17 @@ void CConnman::ThreadOpenConnections(const std::vector<std::string> connect)
                     nOutbound++;
                 }
             }
+        }
+
+        // Bootstrap fresh profiles immediately. A nonempty peers.dat can contain
+        // only dead addresses, so retry discovery after a minute without outbound
+        // connections too. Explicit -connect modes return above and stay isolated.
+        if (!fixedSeedsAdded && (addrman.size() == 0 || (nOutbound == 0 && GetTime() - nStart > 60))) {
+            CNetAddr source;
+            source.SetInternal("fixedseeds");
+            addrman.Add(convertSeed6(Params().FixedSeeds()), source);
+            fixedSeedsAdded = true;
+            LogPrintf("Added fixed seed nodes for peer discovery (empty or unreachable address cache).\n");
         }
 
         // Feeler Connections

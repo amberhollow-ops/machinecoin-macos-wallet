@@ -173,10 +173,13 @@ TestChain100Setup::CreateAndProcessBlock(const std::vector<CMutableTransaction>&
         IncrementExtraNonce(&block, chainActive.Tip(), extraNonce);
     }
 
-    while (!CheckProofOfWork(block.GetHash(), block.nBits, chainparams.GetConsensus())) ++block.nNonce;
+    // Machinecoin validates TimeTravel proof of work, not the block identifier.
+    while (!CheckProofOfWork(block.GetPoWHash(), block.nBits, chainparams.GetConsensus())) ++block.nNonce;
 
     std::shared_ptr<const CBlock> shared_pblock = std::make_shared<const CBlock>(block);
-    ProcessNewBlock(chainparams, shared_pblock, true, nullptr);
+    if (!ProcessNewBlock(chainparams, shared_pblock, true, nullptr) || chainActive.Tip()->GetBlockHash() != block.GetHash()) {
+        throw std::runtime_error("Test block was not connected to the active chain");
+    }
 
     CBlock result = block;
     return result;

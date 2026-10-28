@@ -130,3 +130,4 @@ wallet.dat
 .DS_Store
 /mainnet/
 /wallet-backups/
+/config.cache

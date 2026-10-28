@@ -21,6 +21,8 @@
 #include <QApplication>
 #include <QObject>
 #include <QTest>
+#include <QDir>
+#include <QSettings>
 
 #include <openssl/ssl.h>
 
@@ -39,6 +41,17 @@ Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin);
 #endif
 
 extern void noui_connect();
+
+// Windows GUI-subsystem executables may not expose stdout to the test runner.
+// Allow explicit per-suite reports without changing which assertions execute.
+static int RunQtTest(QObject* test)
+{
+    const QString logDir = QString::fromLocal8Bit(qgetenv("MACHINECOIN_QT_TEST_LOGDIR"));
+    if (logDir.isEmpty()) return QTest::qExec(test);
+    if (!QDir(logDir).isAbsolute() || !QDir().mkpath(logDir)) return 1;
+    const QString report = QDir(logDir).filePath(QString::fromLatin1(test->metaObject()->className()) + ".txt");
+    return QTest::qExec(test, QStringList() << "machinecoin-qt-test" << "-o" << (report + ",txt"));
+}
 
 // This is all you need to run all the tests
 int main(int argc, char *argv[])
@@ -67,34 +80,38 @@ int main(int argc, char *argv[])
     // QApplication:: and QCoreApplication:: in the tests
     QApplication app(argc, argv);
     app.setApplicationName("Machinecoin-Qt-test");
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    const QString settingsPath = QString::fromStdString(pathTemp.string());
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settingsPath);
+    QSettings::setPath(QSettings::IniFormat, QSettings::SystemScope, settingsPath);
 
     SSL_library_init();
 
     URITests test1;
-    if (QTest::qExec(&test1) != 0) {
+    if (RunQtTest(&test1) != 0) {
         fInvalid = true;
     }
 #ifdef ENABLE_WALLET
     PaymentServerTests test2;
-    if (QTest::qExec(&test2) != 0) {
+    if (RunQtTest(&test2) != 0) {
         fInvalid = true;
     }
 #endif
     RPCNestedTests test3;
-    if (QTest::qExec(&test3) != 0) {
+    if (RunQtTest(&test3) != 0) {
         fInvalid = true;
     }
     CompatTests test4;
-    if (QTest::qExec(&test4) != 0) {
+    if (RunQtTest(&test4) != 0) {
         fInvalid = true;
     }
 #ifdef ENABLE_WALLET
     WalletTests test5;
-    if (QTest::qExec(&test5) != 0) {
+    if (RunQtTest(&test5) != 0) {
         fInvalid = true;
     }
     AddressBookTests test6;
-    if (QTest::qExec(&test6) != 0) {
+    if (RunQtTest(&test6) != 0) {
         fInvalid = true;
     }
 #endif

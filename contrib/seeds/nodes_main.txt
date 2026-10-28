@@ -1,5 +1,4 @@
-﻿# List of fixed seed nodes for mainnet
-
-46.38.255.177:40333
-46.38.239.240:40333
-
+# Mainnet bootstrap peers used by the Linux/macOS community wallet.
+# Verified P2P handshakes on 2026-10-28; these are discovery nodes, not trusted checkpoints.
+198.50.168.213:40333
+66.70.182.1:40333

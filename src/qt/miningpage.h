@@ -143,6 +143,8 @@ class MiningPage : public QWidget {
     }
 public:
     explicit MiningPage(QWidget* parent=nullptr): QWidget(parent) {
+        // Repaint the dark background when live labels shrink or change on Windows.
+        setAutoFillBackground(true);
         auto layout = new QVBoxLayout(this); layout->setSpacing(16);
         auto description = new QLabel(tr("Solo mine Machinecoin with your CPU. Rewards go to this wallet only when a block is accepted. Mining uses power and produces heat."));
         description->setWordWrap(true); layout->addWidget(description);

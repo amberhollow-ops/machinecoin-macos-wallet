@@ -11,6 +11,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSpinBox>
+#include <QSettings>
 #include <QThread>
 #include <QTimer>
 #include <QUrl>
@@ -19,17 +20,24 @@
 #include <mutex>
 #include <vector>
 #include <memory>
+#include <set>
+
+struct WalletMiningSession {
+    std::mutex mutex;
+    std::set<std::string> blockHashes;
+};
 
 class WalletMiningWorker : public QThread {
 public:
     interfaces::Node& node;
     std::string address;
+    std::shared_ptr<WalletMiningSession> session;
     std::atomic<bool> stop{false};
     std::atomic<unsigned> blocks{0}, batches{0};
     std::atomic<bool> waiting{false};
     std::mutex errorMutex;
     QString error;
-    WalletMiningWorker(interfaces::Node& n, const std::string& a): node(n), address(a) {}
+    WalletMiningWorker(interfaces::Node& n, const std::string& a, std::shared_ptr<WalletMiningSession> s): node(n), address(a), session(std::move(s)) {}
     void run() override {
         while (!stop.load()) {
             try {
@@ -46,7 +54,13 @@ public:
                 UniValue params(UniValue::VARR);
                 params.push_back(1); params.push_back(address); params.push_back(256);
                 auto result = node.executeRpc("generatetoaddress", params, "");
-                blocks += result.size(); ++batches;
+                {
+                    std::lock_guard<std::mutex> lock(session->mutex);
+                    for (const auto& hash : result.getValues()) {
+                        if (session->blockHashes.insert(hash.get_str()).second) ++blocks;
+                    }
+                }
+                ++batches;
                 // Yield between batches, including on very low difficulty chains.
                 for (unsigned pause = 0; pause < (result.empty() ? 1U : 50U) && !stop.load(); ++pause)
                     QThread::msleep(20);
@@ -114,8 +128,9 @@ class MiningPage : public QWidget {
                 address->setText(QString::fromStdString(result.get_str()));
             }
             savedBlocks = savedBatches = 0; elapsed.start();
+            auto session = std::make_shared<WalletMiningSession>();
             for (int i=0; i<threads->value(); ++i) {
-                workers.emplace_back(new WalletMiningWorker(client->node(), address->text().toStdString()));
+                workers.emplace_back(new WalletMiningWorker(client->node(), address->text().toStdString(), session));
                 workers.back()->start(QThread::LowPriority);
             }
             start->setEnabled(false); stop->setEnabled(true); threads->setEnabled(false);
@@ -132,7 +147,8 @@ public:
         auto description = new QLabel(tr("Solo mine Machinecoin with your CPU. Rewards go to this wallet only when a block is accepted. Mining uses power and produces heat."));
         description->setWordWrap(true); layout->addWidget(description);
         layout->addWidget(new QLabel(tr("CPU threads")));
-        threads = new QSpinBox; threads->setRange(1, qMax(1, QThread::idealThreadCount())); threads->setValue(1); threads->setMaximumWidth(180);
+        threads = new QSpinBox; threads->setRange(1, qMax(1, QThread::idealThreadCount())); threads->setValue(qBound(1, QSettings().value("mining/threads", 1).toInt(), threads->maximum()));
+        connect(threads, QOverload<int>::of(&QSpinBox::valueChanged), this, [](int value) { QSettings().setValue("mining/threads", value); }); threads->setMaximumWidth(180);
         layout->addWidget(threads);
         layout->addWidget(new QLabel(tr("Reward address (created in this wallet when you start)")));
         address = new QLineEdit; address->setReadOnly(true); layout->addWidget(address);
@@ -141,7 +157,7 @@ public:
         stop = new QPushButton(tr("Stop mining")); stop->setObjectName("stopCpuMining"); stop->setEnabled(false);
         auto gpu = new QPushButton(tr("GPU mining — unavailable")); gpu->setEnabled(false);
         buttons->addWidget(start); buttons->addWidget(stop); buttons->addWidget(gpu); layout->addLayout(buttons);
-        auto gpuInfo = new QLabel(tr("No Apple Metal TimeTravel GPU backend is included in this build. CPU mining is available; GPU mining requires a separate compatible backend."));
+        auto gpuInfo = new QLabel(tr("No TimeTravel GPU backend is included in this build. CPU mining is available; GPU mining requires a separate compatible backend."));
         gpuInfo->setWordWrap(true); layout->addWidget(gpuInfo);
         status = new QLabel(tr("Stopped. Mining starts only when you press Start CPU mining.")); status->setWordWrap(true); layout->addWidget(status);
         stats = new QLabel; stats->setWordWrap(true); layout->addWidget(stats); updateStats();

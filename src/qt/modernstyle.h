@@ -14,6 +14,8 @@ inline void applyModernWalletStyle()
     palette.setColor(QPalette::Text, QColor("#f4f4f1"));
     palette.setColor(QPalette::Button, QColor("#25292c"));
     palette.setColor(QPalette::ButtonText, QColor("#f4f4f1"));
+    palette.setColor(QPalette::Link, QColor("#ffc24b"));
+    palette.setColor(QPalette::LinkVisited, QColor("#ffc24b"));
     palette.setColor(QPalette::Highlight, QColor("#ffc24b"));
     palette.setColor(QPalette::HighlightedText, QColor("#111314"));
     palette.setColor(QPalette::Disabled, QPalette::Text, QColor("#777f87"));

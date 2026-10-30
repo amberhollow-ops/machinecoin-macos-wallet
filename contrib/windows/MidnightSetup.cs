@@ -12,8 +12,8 @@ using System.Windows.Media;
 
 [assembly: AssemblyTitle("Machinecoin Midnight Setup")]
 [assembly: AssemblyProduct("Machinecoin Wallet")]
-[assembly: AssemblyVersion("0.17.1.5")]
-[assembly: AssemblyFileVersion("0.17.1.5")]
+[assembly: AssemblyVersion("0.17.1.6")]
+[assembly: AssemblyFileVersion("0.17.1.6")]
 
 // Presentation only: the bundled NSIS engine owns the exact install/uninstall manifest.
 internal static class MidnightSetup

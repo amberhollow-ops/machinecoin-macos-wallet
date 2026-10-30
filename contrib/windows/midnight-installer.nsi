@@ -13,10 +13,10 @@ OutFile "${OUTPUT}"
 InstallDir "$LOCALAPPDATA\Programs\Machinecoin-Midnight"
 RequestExecutionLevel user
 SetCompressor /SOLID lzma
-VIProductVersion "0.17.1.5"
+VIProductVersion "0.17.1.6"
 VIAddVersionKey /LANG=1033 "ProductName" "Machinecoin Wallet Midnight Preview"
 VIAddVersionKey /LANG=1033 "FileDescription" "Machinecoin Wallet Windows x64 installer"
-VIAddVersionKey /LANG=1033 "FileVersion" "0.17.1-preview.5"
+VIAddVersionKey /LANG=1033 "FileVersion" "0.17.1-preview.6"
 VIAddVersionKey /LANG=1033 "LegalCopyright" "Machinecoin Core contributors"
 !define MUI_ICON "..\..\src\qt\res\icons\machinecoin.ico"
 !define MUI_UNICON "..\..\src\qt\res\icons\machinecoin.ico"
@@ -52,7 +52,7 @@ Section "Wallet"
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\MachinecoinMidnightPreview" "DisplayName" "Machinecoin Wallet - Midnight Preview (x64)"
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\MachinecoinMidnightPreview" "UninstallString" '$\"$INSTDIR\MachinecoinMaintenance.exe$\" --uninstall'
     WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\MachinecoinMidnightPreview" "DisplayIcon" "$INSTDIR\machinecoin-qt.exe"
-    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\MachinecoinMidnightPreview" "DisplayVersion" "0.17.1-preview.5"
+    WriteRegStr HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\MachinecoinMidnightPreview" "DisplayVersion" "0.17.1-preview.6"
     WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\MachinecoinMidnightPreview" "NoModify" 1
     WriteRegDWORD HKCU "Software\Microsoft\Windows\CurrentVersion\Uninstall\MachinecoinMidnightPreview" "NoRepair" 1
   ${EndIf}

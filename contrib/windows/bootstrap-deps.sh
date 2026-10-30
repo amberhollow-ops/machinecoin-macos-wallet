@@ -7,6 +7,10 @@ PREFIX="$WORK/prefix"
 export PATH=/mingw64/bin:/usr/bin:$PATH
 mkdir -p "$WORK" "$PREFIX"
 cd "$WORK"
+MAP=""
+for form in "$(pwd -P)" "$(cygpath -m "$WORK")"; do
+  MAP="$MAP -ffile-prefix-map=$form=/build/deps -fdebug-prefix-map=$form=/build/deps -fmacro-prefix-map=$form=/build/deps"
+done
 fetch() {
   local name=$1 url=$2 hash=$3
   test -f "$name" || curl -fL --retry 3 -o "$name" "$url"
@@ -29,7 +33,7 @@ sed -i 's/atomic_init(/atomic_init_db(/g' dbinc/atomic.h mp/mp_region.c mp/mp_mv
 cp "$REPO/depends/config.guess" "$REPO/depends/config.sub" dist/
 mkdir -p build_windows
 cd build_windows
-../dist/configure --build=x86_64-pc-msys --host=x86_64-w64-mingw32 --prefix="$PREFIX" --enable-mingw --disable-shared --enable-cxx --disable-replication CC=gcc CXX=g++ AR=ar RANLIB=ranlib CFLAGS='-O2 -std=gnu11' CXXFLAGS='-O2 -std=c++11'
+../dist/configure --build=x86_64-pc-msys --host=x86_64-w64-mingw32 --prefix="$PREFIX" --enable-mingw --disable-shared --enable-cxx --disable-replication CC=gcc CXX=g++ AR=ar RANLIB=ranlib CFLAGS="-O2 -std=gnu11 $MAP" CXXFLAGS="-O2 -std=c++11 $MAP"
 make -j8 libdb_cxx-4.8.a libdb-4.8.a
 make install_lib install_include
 
@@ -37,7 +41,7 @@ cd "$WORK/bls-signatures-20181101"
 # The portable reference BLAKE2 code does not need over-aligned packed states.
 # Modern GCC rejects arrays of these legacy packed/over-aligned typedefs.
 sed -i 's/ALIGNME( 64 ) typedef struct/typedef struct/' contrib/relic/src/md/blake2.h
-cmake -S . -B build-native -G Ninja -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$PREFIX")" -DOPSYS=WINDOWS -DWSIZE=64 -DSTLIB=ON -DSHLIB=OFF -DSTBIN=ON -DCMAKE_C_FLAGS=-std=gnu11 -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build-native -G Ninja -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$PREFIX")" -DOPSYS=WINDOWS -DWSIZE=64 -DSTLIB=ON -DSHLIB=OFF -DSTBIN=ON -DCMAKE_C_FLAGS="-std=gnu11 $MAP" -DCMAKE_CXX_FLAGS="$MAP" -DCOMP="-O3 -funroll-loops -fomit-frame-pointer $MAP" -DCMAKE_BUILD_TYPE=Release
 cmake --build build-native --target chiablstmp relic_s runtest -j8
 ./build-native/src/runtest.exe
 mkdir -p build-native/merged "$PREFIX/lib" "$PREFIX/include/chiabls"
@@ -50,9 +54,9 @@ cp src/*.hpp contrib/relic/include/*.h build-native/contrib/relic/include/relic_
 
 cd "$WORK/boost_1_74_0"
 ./bootstrap.sh --with-toolset=gcc
-./b2 -j8 toolset=gcc target-os=windows address-model=64 variant=release link=static threading=multi threadapi=win32 --layout=system --with-system --with-filesystem --with-thread --with-chrono --with-program_options --with-test --with-date_time --with-atomic --prefix="$(cygpath -m "$PREFIX")" install
+./b2 -j8 toolset=gcc target-os=windows address-model=64 variant=release link=static threading=multi threadapi=win32 cxxflags="$MAP" --layout=system --with-system --with-filesystem --with-thread --with-chrono --with-program_options --with-test --with-date_time --with-atomic --prefix="$(cygpath -m "$PREFIX")" install
 
 cd "$WORK/protobuf-21.12"
-cmake -S cmake -B build-native -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$PREFIX")" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_SHARED_LIBS=OFF
+cmake -S cmake -B build-native -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$(cygpath -m "$PREFIX")" -DCMAKE_C_FLAGS="$MAP" -DCMAKE_CXX_FLAGS="$MAP" -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_SHARED_LIBS=OFF
 cmake --build build-native -j8
 cmake --install build-native

@@ -60,3 +60,9 @@ machine were not tested. The executable and installer remain unsigned.
 The Midnight setup and uninstaller use a modern English WPF interface.
 They require Windows .NET Framework 4.8 (included with Windows 11). The
 embedded NSIS engine runs silently and preserves the exact removal manifest.
+
+
+## Privacy rebuild candidate - preview.6
+
+Application and dependency compilation remaps build paths. The validation above
+describes preview.5; see VALIDATION.txt for the new candidate results.

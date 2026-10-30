@@ -1,0 +1,3 @@
+Run bash linux-packaging/build-wallet.sh from the source tree.
+Set MACHINECOIN_DEPS_PREFIX to the dependency prefix when it is outside local-deps/prefix.
+Build logs and configure output can contain local paths; do not distribute them.
